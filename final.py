@@ -4,13 +4,18 @@ from functools import partial
 
 from kivy.app import App
 
+from kivy.animation import Animation
+
 from kivy.clock import Clock
+
+from kivy.core.audio import SoundLoader
 
 from kivy.graphics import Line, Color, Rectangle
 
-from kivy.properties import ListProperty
+from kivy.properties import ListProperty, NumericProperty, StringProperty
 
 from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -31,7 +36,14 @@ board = [
 			[1,2,3,4,5,6,7,8,9],
 			[1,2,3,4,5,6,7,8,9]
 		]
+best_time = -100
+board_id = -1
 
+pointsDict = {
+	4: 20,
+	9: 80,
+	16: 200
+}
 colorDict = {
 				"red": (204/255, 139/255, 134/255, 1),
 				"green": (102/255, 143/255, 128/255, 1),
@@ -47,6 +59,15 @@ class BoardLabel(Label):
 	pass
 class ButtonUI(Button):
 	border_color = ListProperty()
+	icon_path = StringProperty()
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+		self.button_click = SoundLoader.load("res/click.wav")
+
+	def play_sound(self):
+		if settingsDict["Sound"] == 1:
+			self.button_click.play()
+
 
 class NumInput(TextInput):
 	def __init__(self, **kwargs):
@@ -60,7 +81,11 @@ class NumInput(TextInput):
 			substring = ""
 		TextInput.insert_text(self, substring, from_undo)
 
-
+class SolvedDialog(FloatLayout):
+	y_hint = NumericProperty()
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+		
 def cell_valid(index):
 	BLOCK_SIZE = int(BOARD_SIZE**0.5)
 	row, col = index//BOARD_SIZE, index%BOARD_SIZE
@@ -131,23 +156,26 @@ def check_board_validity(board, BOARD_SIZE: int):
 	return "Valid"
 
 def generate_board(game_type="Play"):
-	global board
+	global board, best_time, board_id
 	boardArray = []
-	boardFile = open(f"boards_{BOARD_SIZE}.txt", "r").read().split("\n")
+	boardFile = open(f"res/boards/boards_{BOARD_SIZE}.txt", "r").read().split("\n")
 	boardFile.pop(0)
-	boardFile.remove('')
+#	boardFile.remove('')
 	boardCount = len(boardFile)//(BOARD_SIZE)
 	for boards in range(boardCount):
 		board = []
-		for row in range(BOARD_SIZE):
-			rowList = boardFile[boards*(BOARD_SIZE)+row].strip('[]').split(',')
+		for row in range(BOARD_SIZE+1):
+			rowList = boardFile[boards*(BOARD_SIZE+1)+row].strip('[]').split(',')
 			board.append([int(num) for num in rowList])
 		boardArray.append(board[:])
 	board = []
 	if game_type == "Solve":
 		board = [[0 for cell in range(BOARD_SIZE)] for row in range(BOARD_SIZE)]
+		best_time = -100
 	elif game_type == "Play":
-		for elem in boardArray[randrange(1, boardCount)]:
+		board_id = randrange(1, boardCount)
+		best_time = boardArray[board_id][-1][0]
+		for elem in boardArray[board_id][:-1]:
 			board.append(elem[:])
 
 def isSolved():
@@ -186,6 +214,10 @@ def list_delete(num_array, elem):
 	except ValueError:
 		pass
 
+def save_settings():
+	with open("res/settings.txt", "w") as settingsTxt:
+		settingsTxt.write("\n".join([f"{key}={value}" for key, value in settingsDict.items()]))
+
 cells_filled = []
 def solve(parent, dt=None):
 	global index, cells_filled, board
@@ -213,16 +245,22 @@ def solve(parent, dt=None):
 					index = cells_filled[-2][0]*BOARD_SIZE + cells_filled[-2][1]
 				else:
 					print("Board not solvable")
-					break
+					board = [row[:] for row in boardArray[board_id][:-1]]
 				board[index//BOARD_SIZE][index%BOARD_SIZE] = 0
 				cellArray[index].text = str(board[index//BOARD_SIZE][index%BOARD_SIZE])
 		else:
 			index += 1
-	print("Board solved")
-	isSolved()
+	#print("Board solved")
+	if isSolved():
+		if game_type == "Play":
+			solve_anim = Animation(y_hint=0.5, duration= 0.65, t="in_out_sine")
+			final_app.root.ids.solved_dialog.ids.new_points_label.text = f"+0"
+			final_app.root.ids.solved_dialog.ids.time_bonus_label.text = f"+0"
+			solve_anim.start(final_app.root.ids.solved_dialog)
+
 
 def validate(instance):
-	global inputBoard
+	global inputBoard, settingsDict
 	
 	instance.foreground_color = 0,0,0,1
 	if instance.text == "":
@@ -242,11 +280,23 @@ def validate(instance):
 #			print(board, inputBoard)
 		if cell_valid(index) != "Valid":
 			instance.foreground_color = 1,0,0,1
-		isSolved()
+		if isSolved():
+			final_app.root.ids.solved_dialog.ids.complete_label.text = "BOARD COMPLETE!!"
+			solve_anim = Animation(y_hint=0.5, duration= 0.65, t="in_out_sine")
+			solve_anim.start(final_app.root.ids.solved_dialog)
+			final_app.root.ids.solved_dialog.ids.new_points_label.text = f"+{pointsDict[BOARD_SIZE]}"
+			if remaining_time < best_time:
+				time_bonus = (best_time - remaining_time)//20*BOARD_SIZE
+			else:
+				time_bonus = 0
+			final_app.root.ids.solved_dialog.ids.time_bonus_label.text = f"+{time_bonus}"
+
+			settingsDict["Points"] += pointsDict[BOARD_SIZE] + time_bonus
+			final_app.points = settingsDict["Points"]
+			save_settings()
 
 def lostFocus(instance, value):
 	if not value:
-		isSolved()
 		validate(instance)
 	else:
 		instance.foreground_color = 0,0,0,1
@@ -255,9 +305,17 @@ screen_manager = None
 cellArray = []
 inputBoard = []
 remaining_time = -1
+game_type = None
+settingsDict = {
+	"Points": -1,
+	"Music": 0,
+	"Sound": 0
+}
 
 class Final(App):
 	board_size = BOARD_SIZE
+	points = NumericProperty()
+	play_or_solve = StringProperty()
 	def update_board(self, dt=None):
 		global cellArray
 		#print(board)
@@ -278,7 +336,7 @@ class Final(App):
 					#numButton.padding_y =  #(blockSize-(400/BOARD_SIZE))/2
 				boardLayout.add_widget(numButton)
 				cellArray.append(numButton)
-		self.root.ids.board_screen.add_widget(boardLayout)
+		self.root.ids.board_screen.add_widget(boardLayout, index= 1)
 
 
 	def build(self):
@@ -286,20 +344,46 @@ class Final(App):
 		screen_manager = ScreenManager()
 		return screen_manager
 
-	def load_game(self, game_type="Play"):
-		global board
-		global remaining_time
-		generate_board(game_type)
-		#print("____________", board)
+	def load_game(self, play_or_solve="Play"):
+		global board, game_type, remaining_time
+		self.play_or_solve = play_or_solve
+		game_type = play_or_solve
+		generate_board(play_or_solve)
+#		print("____________", board)
 		self.update_board()
 		isSolved()
-		Clock.schedule_once(partial(self.transition, "Board", "left"), 0.7)
-		remaining_time = 5
-		self.root.ids.timer_label.text= (" Time remaining: %2d:%02d" %(remaining_time//60, remaining_time%60))
-		Clock.schedule_once(self.timerStart, 1.7)
+		remaining_time = 0
+		if play_or_solve == "Play":
+			if best_time != -100:
+				self.root.ids.best_time_label.text = "%2d:%02d" %(best_time//60, best_time%60)
+			else:
+				self.root.ids.best_time_label.text = "--:--"
+			self.root.ids.timer_label.text= "%2d:%02d" %(remaining_time//60, remaining_time%60)
+			Clock.schedule_once(self.timerStart, 3)
+		else:
+			self.root.ids.best_time_label.text = "--:--"
+			self.root.ids.timer_label.text = "--:--"
+		self.root.ids.solved_dialog.y_hint = 1.5
+
+		Clock.schedule_once(partial(self.transition, "Board", "left"), 2)
+		#print("Loading Game")
+		
 
 	def on_start(self):
-		pass
+		global settingsDict
+		settings = open("res/settings.txt", "r").read().split("\n")
+		for line in settings:
+			settingsDict[line.split("=")[0]] =  int(line.split("=")[1])
+		self.points = settingsDict["Points"]
+		self.root.ids.music_button.icon_path = f"res/icons/music-icon-{settingsDict['Music']}.png"
+		self.root.ids.sound_button.icon_path = f"res/icons/sound-icon-{settingsDict['Sound']}.png"
+		#self.root.ids.points_label.text = str(self.points)
+		if settingsDict["Music"] == 1:
+			print("Playing BGM")
+			self.background_music = SoundLoader.load("res/background_music.wav")
+			self.background_music.loop = True
+			self.background_music.volume = 0.2
+			self.background_music.play()
 
 	def select_board_size(self, size, color):
 		global BOARD_SIZE
@@ -333,25 +417,37 @@ class Final(App):
 
 	def timerStart(self, dt=None):
 		global remaining_time
-		remaining_time -= 1
+		remaining_time += 1
 		time_in_minutes = "%2d:%02d" %(remaining_time//60, remaining_time%60)
 		timer_label = self.root.ids.timer_label
-		timer_label.text= (" Time remaining: " + time_in_minutes)
-		if remaining_time > 60:
-			timer_label.color = (0, 0, 0, 1)
-		else:
-			timer_label.color = (1, 0, 0, 1)
+		timer_label.text= ("" + time_in_minutes)
+		# if remaining_time > 60:
+		# 	timer_label.color = (0, 0, 0, 1)
+		# else:
+		# 	timer_label.color = (1, 0, 0, 1)
 		#print("Time remaining: " + time_in_minutes)
 		if self.root.current == "Board":
 			if remaining_time > 0:
-				self.root.ids.solve_button.disabled = True
+		#		self.root.ids.solve_button.disabled = True
 				Clock.schedule_once(self.timerStart, 1)
+		#	else:
+		#		self.root.ids.solve_button.disabled = False
+
+	def toggle_settings(self, setting_type, button):
+		global settingsDict
+		settingsDict[setting_type] = 0 if settingsDict[setting_type] else 1
+		button.icon_path = f"res/icons/{setting_type.lower()}-icon-{settingsDict[setting_type]}.png"
+		if setting_type == "Music":
+			if settingsDict["Music"] == 1:
+				self.background_music.play()
 			else:
-				self.root.ids.solve_button.disabled = False
+				self.background_music.stop()
+		save_settings()
 
 	def transition(self, screen_name, direction, dt=None):
 		screen_manager.transition.direction = direction
 		self.root.current = screen_name
+		#print(f"Switching to {screen_name}")
 
 if __name__ == "__main__":
 	final_app = Final()

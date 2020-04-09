@@ -1,0 +1,30 @@
+9
+[0,9,0,0,0,1,0,0,0]
+[7,0,0,0,0,0,0,0,1]
+[5,8,0,0,0,9,7,0,0]
+[0,0,8,4,0,0,0,0,0]
+[0,0,0,9,1,5,0,0,7]
+[0,0,0,0,0,0,0,5,0]
+[0,6,0,0,0,0,0,0,9]
+[3,0,0,0,0,0,1,0,0]
+[0,0,0,0,0,4,0,0,0]
+
+
+Credits:
+Home: <a target="_blank" href="https://icons8.com/icons/set/home">Home icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Time: <a target="_blank" href="https://icons8.com/icons/set/time">Time icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Trophy: <a target="_blank" href="https://icons8.com/icons/set/trophy">Trophy icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Points: <a target="_blank" href="https://icons8.com/icons/set/coin-r">Coin R icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Music-On: <a target="_blank" href="https://icons8.com/icons/set/music--v1">Music icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Music-Off: <a target="_blank" href="https://icons8.com/icons/set/music--v1">Music icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Sound-On: <a target="_blank" href="https://icons8.com/icons/set/musical-notes">Musical Notes icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Sound-Off: <a target="_blank" href="https://icons8.com/icons/set/mute">Mute icon</a> icon by <a target="_blank" href="https://icons8.com">Icons8</a>
+
+Click Sound: http://soundbible.com/1705-Click2.html
