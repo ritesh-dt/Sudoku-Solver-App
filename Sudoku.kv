@@ -1,271 +1,371 @@
-# File name: main.py
-#:kivy 1.11.0
-#:import Label kivy.uix.label.Label
+#:set yellow (255/255, 213/255, 46/255, 1)
+#:set dark_yellow (200/255, 150/255, 120/255, 1)
+#:set grey (249/255, 249/255, 249/255, 1)
 
-#:set grid_border_color (193/255, 163/255, 123/255, 1)
-#:set button_border_color (193/255, 163/255, 123/255, 1)
+#:set grid_bg_color grey
+#:set grid_border_color (180/255, 180/255, 180/255, 1)
+#:set grid_border_color_light (200/255, 200/255, 200/255, 1) 
 
-<Button>:
-	font_size: 306/app.board_size
-#	size_hint: (1/10, 9/160)
-	color: 0,0,0,1
-	background_normal: ''
-#	background_down: '\press.jpg’
-	background_color: 224/255, 201/255, 171/255, 1
+#:set screen_bg_color grey
+
+#:include button.kv
+#:include dialog.kv
+#:include label.kv
+
+
+<Board>:
+	id: board_widget
+	size_hint: (9/10, None)
+	height: self.width
+	pos_hint: {"center_x": 0.5, "top": 0.85}
+
+	canvas.after:
+		Color:
+			rgba: grid_border_color
+		Line:
+			width: 4
+			rectangle: self.x , self.y, self.width, self.height
+
+		Line:
+			width: 4
+			points: self.x + self.width/(app.board_size**0.5), self.y, self.x+self.width/(app.board_size**0.5), self.y+self.height
+		Line:
+			width: 4
+			points: self.x + 2 * self.width/(app.board_size**0.5), self.y, self.x + 2 * self.width/(app.board_size**0.5), self.y+self.height
+		Line:
+			width: 4
+			points: self.x + 3 * self.width/(app.board_size**0.5), self.y, self.x + 3 * self.width/(app.board_size**0.5), self.y+self.height
+
+		Line:
+			width: 4
+			points: self.x, self.y + self.height/(app.board_size**0.5), self.x + self.width, self.y + self.height/(app.board_size**0.5)
+		Line:
+			width: 4
+			points: self.x, self.y + 2 * self.height/(app.board_size**0.5), self.x + self.width, self.y + 2 * self.height/(app.board_size**0.5)
+		Line:
+			width: 4
+			points: self.x, self.y + 3 * self.height/(app.board_size**0.5), self.x + self.width, self.y + 3 * self.height/(app.board_size**0.5)
+
 
 <NumInput>:
 	halign: "center"
 	multiline: False
 	input_type: "number"
 	input_filter: "int"
-	#padding_y: 18
-	font_size: 306/app.board_size
-	foreground_color: 0,0,0,1
-	cursor_blink: False
+	font_size: self.height/2
+	padding: [0, self.height / 2.0 - (self.line_height / 2.0) * len(self._lines)]
+	font_color: 1, 0, 0, 1
 	background_normal: ''
-	background_down: ''
-	background_color: 224/255, 201/255, 171/255, 1
+	background_color: grid_bg_color
+	canvas.after:
+		Color:
+			rgba: grid_border_color_light
+		Line:
+			width: 2
+			rectangle: self.x , self.y, self.width, self.height
 
-<Label>:
-	halign: "center"
-	valign: "middle"
-	font_size: 306/app.board_size
-	color: 145/255, 120/255, 88/255, 1
-	canvas.before:
-		Color: 
-			rgba: 224/255, 201/255, 171/255, 1
-		Rectangle:
-			pos: (self.x, self.y)
-			size: (self.width, self.height)
-<GridLayout>:
-	pos_hint: {"x": 0.05, "top": 0.85}
-	
-<BoardScreen>:
-	#orientation: 'vertical'
+<Screen>:
 	canvas.before:
 		Color:
-			rgba: 1, 1, 1, 1
+			rgba: screen_bg_color
 		Rectangle:
 			pos: 0,0
 			size: self.width, self.height
-	Label:
-		id: solvedLabel
-		halign: "left"
-		text_size: self.size
-		text: "Not Solved"
-		color: 1,0,0,1
-		font_size: 44
-		size_hint: (0.5, 0.05)
-		pos_hint: {"x": 0.05, "top":0.13}
-		canvas.before:
-			Color: 
-				rgba: 255/255, 255/255, 255/255, 1
-			Rectangle:
-				pos: (self.x, self.y)
-				size: (self.width, self.height)
-	
-	Label:
-		id: timerLabel
-		halign: "left"
-		text_size: self.size
-		text: "Tiles remaining: "
-	#	color: 1,0,0,1
-		font_size: 42
-		size_hint: (0.55, 0.05)
-		pos_hint: {"x": 0.45, "top":0.13}
-		canvas.before:
-			Color: 
-				rgba: 255/255, 255/255, 255/255, 1
-			Rectangle:
-				pos: (self.x, self.y)
-				size: (self.width, self.height)
-	
-	Label:
-		id: timerLabel
-		halign: "left"
-		text_size: self.size
-		text: "Time remaining"
-		font_size: 40
-		size_hint: (0.55, 0.05)
-		pos_hint: {"x": 0.05, "top":0.95}
-		canvas.before:
-			Color: 
-				rgba: 255/255, 201/255, 171/255, 1 #255/255, 255/255, 255/255, 1
-			RoundedRectangle:
-				pos: (self.x-5, self.y-5)
-				size: (self.width+10, self.height+10)
-				radius : [10,10,10,10]
 
-	Label:
-		text: "Board Status"
-		size_hint: (1, 0.05)
-		pos_hint: {"center_x": 0.5, "y":0.15}
-		background_color: (1,1,1,1)
-	
-	GridLayout:
-		id: borderGrid
-		size_hint: (9/10, None)
-		height: self.width
-	Button:
-		font_size: 36
-		text: "Solve"
-		pos_hint: {"right": 0.4, "top": 0.3}
-		size_hint_x: None
-		size_hint_y: None
-		size: (root.width/4, root.width/7)
-		disabled: True
-		canvas.before:
-			Color:
-				rgba: button_border_color
-			Line:
-				width: 5
-				rectangle: self.x , self.y, self.width, self.height
-		
-		on_press: root.solveBoard()
-	Button:
-		font_size: 36
-		text: "Generate"
-		pos_hint: {"x": 0.6, "top": 0.3}
-		size_hint_x: None
-		size_hint_y: None
-		size: (root.width/4, root.width/7)
-		on_press: root.generateBoard()
-		canvas.before:
-			Color:
-				rgba: button_border_color
-			Line:
-				width: 5
-				rectangle: self.x , self.y, self.width, self.height
-
-	Button:
-		font_size: 28
-		text: "Home"
-		pos_hint: {"right": 0.9, "top": 0.95}
-		size_hint: (0.2, 0.05)
-		on_press: root.loadMainScreen()
-		canvas.before:
-			Color:
-				rgba: button_border_color
-			Line:
-				width: 5
-				rectangle: self.x , self.y, self.width, self.height
-	
-#	BoxLayout:
-#		orientation: "horizontal"
-#		spacing: 50
-#		size_hint: (0.85, 0.075)
-#		pos_hint: {"x":0.075, "top":0.15}
-#		Button:
-#			text: "4x4"
-#			#pos_hint: {"x": 0.075, "top": 0.35}
-#			size_hint: (0.25, 0.075)
-#			on_press: root.select_board_size(4, self)
-#			disabled: f"{app.board_size}x{app.board_size}" == self.text
-
-#			canvas.before:
-#				Color:
-#					rgba: button_border_color
-#				Line:
-#					width: 5
-#					rectangle: self.x , self.y, self.width, self.height
-#	
-
-<MainScreen>:
-	canvas.before:
-		Color:
-			rgba: 1, 1, 1, 1
-		Rectangle:
-			pos: 0,0
-			size: self.width, self.height
-	Label:
-		text: "Sudoku Solver"
-		font_size: 72
-		size_hint: (0.7, 0.1)
-		pos_hint: {"center_x": 0.5, "center_y":0.8}
-	
-	Button:
-		font_size: 36
-		text: "Play"
-		pos_hint: {"center_x": 0.5, "top": 0.5}
-		size_hint: (0.65, 0.1)
-		on_press: root.loadGame()
-		canvas.before:
-			Color:
-				rgba: button_border_color
-			Line:
-				width: 5
-				rectangle: self.x , self.y, self.width, self.height
-
-	Button:
-		font_size: 36
-		text: "Generate Solution"
-		pos_hint: {"center_x": 0.5, "top": 0.35}
-		size_hint: (0.65, 0.1)
-		on_press: root.loadGame(type="Solve")
-		canvas.before:
-			Color:
-				rgba: button_border_color
-			Line:
-				width: 5
-				rectangle: self.x , self.y, self.width, self.height
-
-	BoxLayout:
-		orientation: "horizontal"
-		spacing: 50
-		size_hint: (0.85, 0.075)
-		pos_hint: {"x":0.075, "top":0.2}
-		Button:
-			text: "4x4"
-			#pos_hint: {"x": 0.075, "top": 0.35}
-#			size_hint: (0.25, 0.075)
-			on_press: root.select_board_size(4, self)
-			canvas.before:
-				Color:
-					rgba: button_border_color
-				Line:
-					width: 5
-					rectangle: self.x , self.y, self.width, self.height
-	
-		Button:
-			text: "9x9"
-			#pos_hint: {"x": 0.375, "top": 0.35}
-#			size_hint: (0.25, 0.075)
-			on_press: root.select_board_size(9, self)
-			disabled: True
-			canvas.before:
-				Color:
-					rgba: button_border_color
-				Line:
-					width: 5
-					rectangle: self.x , self.y, self.width, self.height
-				
-		Button:
-			text: "16x16"
-			#pos_hint: {"x": 0.675, "top": 0.35}
-#			size_hint: (0.25, 0.075)
-			on_press: root.select_board_size(16, self)
-			canvas.before:
-				Color:
-					rgba: button_border_color
-				Line:
-					width: 5
-					rectangle: self.x , self.y, self.width, self.height
-
-<TestScreenManager>:
+<ScreenManager>:
+	id: screen_manager
 	Screen:
 		name: "Main"
-		MainScreen
+		id: main_screen
+		Label:
+			text: "Sudoku Solver"
+			font_size: 72
+			size_hint: (1, 0.15)
+			pos_hint: {"center_x": 0.5, "top":0.85}
+
+			canvas.before:
+				Color:
+					rgba: yellow
+				Rectangle:
+					size: self.size
+					pos: self.pos
+				Color:
+					rgba: dark_yellow
+				Line:
+					width: 5
+					points: self.x, self.y, self.right, self.y
+				Line:
+					width: 5
+					points: self.x, self.top, self.right, self.top
+		
+		BoxLayout:
+			orientation: "horizontal"
+			size_hint: (0.25, 0.05)
+			pos_hint: {"right": 0.95, "top":0.95}
+			canvas.before:
+				Color: 
+					rgba: yellow
+				RoundedRectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+					radius : [10,10,10,10]
+			canvas.after:	
+				Color:
+					rgba: dark_yellow
+				Line:
+					width: 2
+					rectangle: self.x, self.y, self.width, self.height
+			Image:
+				source: "res/icons/points-icon.png"
+			Label:
+				id: points_label
+				halign: "center"
+				size_hint_x: None
+				text_size: self.size
+				text: str(app.points)
+				canvas.before:
+					Color: 
+						rgba: yellow
+					Rectangle:
+						pos: (self.x, self.y)
+						size: (self.width, self.height)
+
+		ButtonUI:
+			id: music_button
+			pos_hint: {"x": 0.05, "top": 0.95}
+			size_hint: (0.15, 0.05)
+			on_release: 
+				app.toggle_settings("Music", self)
+			icon_path: "res/icons/music-icon-1.png"
+
+			Image:
+				id: icon_image
+				source: self.parent.icon_path
+				x: self.parent.x + (self.parent.width - self.width)/2
+				y: self.parent.y + (self.parent.height - self.height)/2
+
+		ButtonUI:
+			id: sound_button
+			pos_hint: {"x": 0.25, "top": 0.95}
+			size_hint: (0.15, 0.05)
+			on_release: 
+				app.toggle_settings("Sound", self)
+			icon_path: "res/icons/sound-icon-1.png"
+
+			Image:
+				id: icon_image
+				source: self.parent.icon_path
+				x: self.parent.x + (self.parent.width - self.width)/2
+				y: self.parent.y + (self.parent.height - self.height)/2
+
+
+
+		ButtonUI:
+			font_size: 36
+			text: "Play"
+			pos_hint: {"center_x": 0.5, "top": 0.5}
+			size_hint: (0.65, 0.1)
+			on_release:
+				app.transition("Loading", "left")	
+				app.load_game()
+
+		ButtonUI:
+			font_size: 36
+			text: "Generate Solution"
+			pos_hint: {"center_x": 0.5, "top": 0.35}
+			size_hint: (0.65, 0.1)
+			on_release:
+				app.transition("Loading", "left")
+				app.load_game(play_or_solve="Solve")
+
+		Label:
+			text: "Board Size"
+			size_hint: (1, 0.05)
+			pos_hint: {"center_x": 0.5, "top":0.225}
+			canvas.before:
+				Color: 
+					rgba: yellow
+				Rectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+				Color:
+					rgba: dark_yellow
+				Line:
+					width: 3
+					points: self.x, self.y, self.right, self.y
+				Line:
+					width: 3
+					points: self.x, self.top, self.right, self.top
+		BoxLayout:
+			id: size_layout
+			orientation: "horizontal"
+			spacing: 50
+			size_hint: (0.85, 0.075)
+			pos_hint: {"x":0.075, "top":0.15}
+			ButtonUI:
+				text: "4x4"
+				on_release: app.select_board_size(4, "red")
+		
+			ButtonUI:
+				text: "9x9"
+				on_release: app.select_board_size(9, "green")
+				disabled: True
+					
+			ButtonUI:
+				text: "16x16"
+				on_release: app.select_board_size(16, "yellow")
+	Screen:
+		id: board_screen
+		name: "Board"
+		
+		Label:
+			id: solvedLabel
+			text: "Not Solved"
+			color: 1,0,0,1
+			size_hint: (None, 0.05)
+			width: self.texture_size[0]
+			pos_hint: {"x": 0.05, "top":0.215}
+			canvas.before:
+				Color: 
+					rgba: screen_bg_color
+				Rectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+		
+		Label:
+			id: tilesLabel
+			text: "Tiles remaining:"
+			size_hint: (None, 0.05)
+			width: self.texture_size[0]
+			pos_hint: {"right": 0.95, "top":0.215}
+			canvas.before:
+				Color: 
+					rgba: screen_bg_color
+				Rectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+		
+		BoxLayout:
+			orientation: "horizontal"
+			size_hint: (0.25, 0.05)
+			pos_hint: {"x": 0.05, "top":0.95}
+			canvas.before:
+				Color: 
+					rgba: yellow
+				RoundedRectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+					radius : [10,10,10,10]
+			canvas.after:	
+				Color:
+					rgba: dark_yellow
+				Line:
+					width: 2
+					rectangle: self.x, self.y, self.width, self.height
+			Image:
+				source: "res/icons/time-icon.png"
+			Label:
+				id: timer_label
+				halign: "left"
+				size_hint_x: None
+				text_size: self.size
+				text: ""
+				canvas.before:
+					Color: 
+						rgba: yellow
+					Rectangle:
+						pos: (self.x, self.y)
+						size: (self.width, self.height)
+		BoxLayout:
+			orientation: "horizontal"
+			size_hint: (0.25, 0.05)
+			pos_hint: {"x": 0.35, "top":0.95}
+			canvas.before:
+				Color: 
+					rgba: yellow
+				RoundedRectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+					radius : [10,10,10,10]
+			canvas.after:	
+				Color:
+					rgba: dark_yellow
+				Line:
+					width: 2
+					rectangle: self.x, self.y, self.width, self.height
+			Image:
+				source: "res/icons/trophy-icon.png"
+			Label:
+				id: best_time_label
+				halign: "left"
+				size_hint_x: None
+				text_size: self.size
+				text: ""
+				canvas.before:
+					Color: 
+						rgba: yellow
+					Rectangle:
+						pos: (self.x, self.y)
+						size: (self.width, self.height)
+
+		Label:
+			text: "Board Status"
+			size_hint: (1, 0.05)
+			pos_hint: {"center_x": 0.5, "top":0.275}
+			canvas.before:
+				Color: 
+					rgba: yellow
+				Rectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+				Color:
+					rgba: dark_yellow
+				Line:
+					width: 3
+					points: self.x, self.y, self.right, self.y
+				Line:
+					width: 3
+					points: self.x, self.top, self.right, self.top
+		
+		ButtonUI:
+			id: solve_button
+			text: "Solve"
+			pos_hint: {"center_x": 0.5, "top": 0.15}
+			size_hint: (0.9, 0.05)		
+			on_release: app.solve_board()
+
+		Label:
+			text: "Using solve will disqualify you from earning points on this level" if app.play_or_solve == "Play" else "Solving may take 10-20 secs depending on board complexity"
+			halign: "center"
+			pos_hint: {"center_x": 0.5, "y": 0.025}
+			size_hint: (0.9, 0.05)
+			font_size: 28
+			text_size: self.size
+			canvas.before:
+				Color:
+					rgba: screen_bg_color
+				Rectangle:
+					pos: self.pos
+					size: self.size
+
+		ButtonUI:
+			pos_hint: {"right": 0.95, "top": 0.95}
+			size_hint: (0.15, 0.05)
+			on_release: 
+				app.transition("Main", "right")
+
+			Image:
+				source: "res/icons/home-icon.png"
+				x: self.parent.x + (self.parent.width - self.width)/2
+				y: self.parent.y + (self.parent.height - self.height)/2
+
+		SolvedDialog:
+			id: solved_dialog
+			pos_hint: {"center_x": 0.5, "center_y": self.y_hint}
+			size_hint: (1, 1)
+
 	Screen:
 		name: "Loading"
-		LoadingScreen
-	Screen:
-		name: "Board"
-		BoardScreen:
-			id: board_screen
-	Screen:
-		name: "Test"
 		Label:
-			pos_hint: {"x": 0.5, "y": 0.5}
-			text: "Hi"
-	
-	
+			font_size: 64
+			text: "Loading..."
