@@ -1,0 +1,155 @@
+#:set yellow (255/255, 213/255, 46/255, 1)
+#:set dark_yellow (200/255, 150/255, 120/255, 1)
+#:set grey (249/255, 249/255, 249/255, 1)
+
+#:set grid_border_color (180/255, 180/255, 180/255, 1)
+
+#:set screen_bg_color grey
+
+<Mask@Label>:
+	text: ""
+	size_hint: (1, 1)
+	pos_hint: {"x":0, "y":0}
+	canvas.after:
+		Clear
+		Color: 
+			rgba: screen_bg_color 
+		Rectangle:
+			pos: (self.x, self.y)
+			size: (self.width, self.height)
+
+<SolvedDialog>:
+	y_hint: 1.7
+	canvas.before:
+		Color:
+			rgba: screen_bg_color
+		Rectangle:
+			pos: self.pos
+			size: self.size
+		Color:
+			rgba: grid_border_color
+		Line:
+			width: 10
+			rectangle: self.x, self.y, self.width, self.height
+
+	Mask
+
+	Label:
+		id: complete_label
+		text: "COMPLETE!!"
+		font_size: 64
+		size_hint: (None, None)
+		size: self.texture_size
+		pos_hint: {"center_x": 0.5, "center_y": 0.75}
+		canvas.before:
+			Color
+				rgba: screen_bg_color
+			Rectangle:
+				pos: self.pos
+				size: self.size
+
+	Label:
+		text: "Board solved:"
+		size_hint: (0.35, 0.05)
+		pos_hint: {"center_x": 0.35, "top":0.65}
+		canvas.before:
+			Color
+				rgba: screen_bg_color
+			Rectangle:
+				pos: self.pos
+				size: self.size
+
+	BoxLayout:
+		orientation: "horizontal"
+		size_hint: (0.25, 0.05)
+		pos_hint: {"center_x": 0.65, "top":0.65}
+		canvas.before:
+			Color: 
+				rgba: yellow
+			RoundedRectangle:
+				pos: (self.x, self.y)
+				size: (self.width, self.height)
+				radius : [10,10,10,10]
+		canvas.after:	
+			Color:
+				rgba: dark_yellow
+			Line:
+				width: 2
+				rectangle: self.x, self.y, self.width, self.height
+		Image:
+			source: "res/icons/points-icon.png"
+		Label:
+			id: new_points_label
+			halign: "left"
+			size_hint_x: None
+			text_size: self.size
+			text: ""
+			canvas.before:
+				Color: 
+					rgba: yellow
+				Rectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+
+	Label:
+		text: "Time bonus:"
+		size_hint: (0.35, 0.05)
+		pos_hint: {"center_x": 0.35, "top":0.55}
+		canvas.before:
+			Color
+				rgba: screen_bg_color
+			Rectangle:
+				pos: self.pos
+				size: self.size
+
+	BoxLayout:
+		orientation: "horizontal"
+		size_hint: (0.25, 0.05)
+		pos_hint: {"center_x": 0.65, "top":0.55}
+		canvas.before:
+			Color: 
+				rgba: yellow
+			RoundedRectangle:
+				pos: (self.x, self.y)
+				size: (self.width, self.height)
+				radius : [10,10,10,10]
+		canvas.after:	
+			Color:
+				rgba: dark_yellow
+			Line:
+				width: 2
+				rectangle: self.x, self.y, self.width, self.height
+		Image:
+			source: "res/icons/points-icon.png"
+		Label:
+			id: time_bonus_label
+			halign: "left"
+			size_hint_x: None
+			text_size: self.size
+			text: ""
+			canvas.before:
+				Color: 
+					rgba: yellow
+				Rectangle:
+					pos: (self.x, self.y)
+					size: (self.width, self.height)
+
+	ButtonUI:
+		size_hint: (0.45, 0.075)
+		pos_hint: {"center_x": 0.5, "top": 0.35}
+		on_release: 
+			app.transition("Main", "right")
+
+		Image:
+			source: "res/icons/home-icon.png"
+			x: self.parent.x + (self.parent.width - self.width)/2
+			y: self.parent.y + (self.parent.height - self.height)/2
+
+<ModalView>:
+	canvas.after:
+		Color:
+			rgba: (120/255, 120/255, 120/255, 1)
+		Line:
+			width: 3
+			rectangle: self.x, self.y, self.width, self.height
+	size_hint: (0.35, 0.11)

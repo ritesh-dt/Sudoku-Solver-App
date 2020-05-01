@@ -1,0 +1,18 @@
+#:set button_bg_color (229/255, 229/255, 229/255, 1)
+#:set button_border_color yellow
+
+
+<ButtonUI>:
+	font_size: 306/app.board_size
+	color: 0,0,0,1
+	background_normal: ''
+	background_down: 'res/button_pressed.png'
+	background_color: button_bg_color
+	on_release:
+		self.play_sound()
+	canvas.before:
+		Color:
+			rgba: (120/255, 120/255, 120/255, 1)
+		Line:
+			width: 3
+			rectangle: self.x , self.y, self.width, self.height

@@ -1,0 +1,36 @@
+#:set grey (249/255, 249/255, 249/255, 1)
+
+#:set grid_bg_color grey
+#:set grid_border_color (180/255, 180/255, 180/255, 1)
+#:set grid_border_color_light (200/255, 200/255, 200/255, 1) 
+
+#:set label_bg_color (229/255, 229/255, 229/255, 1)
+#:set label_text_color (20/255, 8/255, 14/255, 1)
+
+<Label>:
+	halign: "center"
+	valign: "middle"
+	font_size: 306/app.board_size
+	color: label_text_color
+	canvas.before:
+		Color: 
+			rgba: label_bg_color
+		Rectangle:
+			pos: (self.x, self.y)
+			size: (self.width, self.height)
+<BoardLabel>:
+	halign: "center"
+	valign: "middle"
+	font_size: self.height/2
+	color: (50/255, 50/255, 50/255, 1)
+	canvas.before:
+		Color: 
+			rgba: grid_bg_color
+		Rectangle:
+			pos: (self.x, self.y)
+			size: (self.width, self.height)
+		Color:
+			rgba: grid_border_color_light
+		Line:
+			width: 2
+			rectangle: self.x , self.y, self.width, self.height

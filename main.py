@@ -1,61 +1,135 @@
-from random import randrange
-from functools import partial
 import kivy
 kivy.require('1.11.0')
+from functools import partial
+ 
 from kivy.app import App
 
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
-from kivy.uix.widget import Widget
-from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.animation import Animation
 
 from kivy.clock import Clock
-from kivy.graphics import Line, Color, Rectangle
+
+from kivy.core.audio import SoundLoader
 from kivy.core.window import Window
 
-cellArray = []
-board = []
-BOARD_SIZE, BLOCK_SIZE = 9, -1
-blockCount, blockSize = -1, -1
-sectionX, sectionY = -1, -1
+from kivy.graphics import Line, Color, Rectangle
 
-def generateBoardFromFile(type="Play"):
-	global board, BOARD_SIZE, BLOCK_SIZE, blockCount, blockSize, sectionX, sectionY
-	boardArray = []
-#	print(f"boards_{BOARD_SIZE}.txt")
-	boardFile = open(f"boards_{BOARD_SIZE}.txt", "r").read().split('\n')
-	BOARD_SIZE = int(boardFile[0])
-	BLOCK_SIZE = int(BOARD_SIZE ** 0.5)
-	boardFile.pop(0)
-	boardFile.remove('')
-	boardCount = len(boardFile)//(BOARD_SIZE)
-	for boards in range(boardCount):
-		board = []
-		for row in range(BOARD_SIZE):
-			rowList = boardFile[boards*(BOARD_SIZE)+row].strip('[]').split(',')
-			board.append([int(num) for num in rowList])
-		boardArray.append(board[:])
-	board = []
-#	print(boardCount)
-	if type == "Solve":
-		for elem in boardArray[randrange(0, 1)]:
-			board.append(elem[:])
-	else:
-		for elem in boardArray[randrange(1, boardCount)]:
-			board.append(elem[:])
+from kivy.properties import ListProperty, NumericProperty, ObjectProperty, StringProperty
 
-	blockCount = int(BOARD_SIZE**0.5)
-	blockSize = 9*Window.size[0]/(10*BOARD_SIZE)
-	sectionX = Window.size[0]*0.05
-	sectionY = Window.size[1]*0.85 - blockSize
-		
+from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
+from kivy.uix.modalview import ModalView
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.textinput import TextInput
 
-def check_board_validity(board, BOARD_SIZE: int):
-	num_list = []
+from random import randrange
+
+'''Board constants'''
+BOARD_SIZE = 9
+BLOCK_SIZE = int(BOARD_SIZE**0.5)
+boardArray = []
+board = [
+			[1,0,0,4,5,6,7,8,9],
+			[1,0,3,4,5,6,7,8,9],
+			[1,0,0,4,5,0,7,8,9],
+			[1,2,3,4,5,6,7,8,9],
+			[1,2,3,4,5,6,7,8,9],
+			[1,2,3,4,5,6,7,8,9],
+			[1,2,3,4,5,6,7,8,9],
+			[1,2,3,4,5,6,7,8,9],
+			[1,2,3,4,5,6,7,8,9]
+		]
+best_time = -100
+board_id = -1
+
+'''Points earned when solving a board of specific dimension'''
+pointsDict = {
+	4: 20,
+	9: 80,
+	16: 200
+}
+
+'''Definitions for various UI elements used in the application'''
+class Board(GridLayout):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+class BoardLabel(Label):
+	pass
+class ButtonUI(Button):
+	border_color = ListProperty()
+	icon_path = StringProperty()
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+		self.button_click = SoundLoader.load("res/click.wav")
+
+	def play_sound(self):
+		if settingsDict["Sound"] == 1:
+			self.button_click.play()
+
+
+class NumInput(TextInput):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+	# Used to validate whether input is numeric and in between 1 to n (dimension)
+	def insert_text(self, substring, from_undo=False):
+		if (self.text + substring).isdigit():
+			if not int(self.text + substring) in range(1, BOARD_SIZE+1):
+				substring = ""
+		else:
+			substring = ""
+		TextInput.insert_text(self, substring, from_undo)
+
+class SolvedDialog(FloatLayout):
+	y_hint = NumericProperty()
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+
+def cell_valid(index):
+	'''Check whether a specific cell has valid entry or not'''
+	BLOCK_SIZE = int(BOARD_SIZE**0.5)
+	row, col = index//BOARD_SIZE, index%BOARD_SIZE
+	cellNum = inputBoard[row][col]
+	if inputBoard[row].count(cellNum) > 1 and cellNum > 0:
+		return "Invalid1"
+	for y in range(BOARD_SIZE):
+		if inputBoard[y][col] == cellNum and cellNum > 0 and y != row:
+			return "Invalid2"
+	blockX, blockY = row//BLOCK_SIZE, col//BLOCK_SIZE
+
+	for x in range(BLOCK_SIZE):
+		for y in range(BLOCK_SIZE):
+			currentBlock = inputBoard[blockX*BLOCK_SIZE+x][blockY*BLOCK_SIZE+y]
+			if currentBlock == cellNum and cellNum > 0 and (blockX*BLOCK_SIZE+x, blockY*BLOCK_SIZE+y) != (row, col):
+				return "Invalid3"
+	return "Valid"
+
+def cell_options (board, row, col):
+	'''Find available entries for a specific cell'''
+	BLOCK_SIZE = int(BOARD_SIZE**0.5)
+	num_list = [num for num in range(1,BOARD_SIZE+1)]
+	if (row, col) in cells_filled:
+		for elem in cells_filled[cells_filled.index((row, col))+1]:
+			list_delete(num_list, elem)
 	
+	for i in range(BOARD_SIZE):
+		list_delete(num_list, board[row][i])
+		list_delete(num_list, board[i][col])
+
+	blockX, blockY = row//BLOCK_SIZE, col//BLOCK_SIZE
+	for x in range(BLOCK_SIZE):
+		for y in range(BLOCK_SIZE):
+			currentBlock = board[blockX*BLOCK_SIZE+x][blockY*BLOCK_SIZE+y]
+			list_delete(num_list, currentBlock)
+	return num_list
+
+def check_board_validity(board, BOARD_SIZE):
+	'''Check whether each and every cell has a valid entry and return either "Valid" or "Not Valid"'''
+	num_list = []
+	BLOCK_SIZE = int(BOARD_SIZE**0.5)
 	for row in board:
 		for digit in row:
 			if str(digit) not in "".join([str(number) for number in range(0,BOARD_SIZE+1)]):
@@ -86,42 +160,37 @@ def check_board_validity(board, BOARD_SIZE: int):
 					return "Not ValidB2"
 	return "Valid"
 
-def list_delete(num_array, elem):
-	try:
-		num_array.remove(elem)
-	except ValueError:
-		pass
-
-remainingTime = -1
-def timerStart(dt, label):
-	global remainingTime
-	remainingTime -= 1
-	time_in_minutes = "%2d:%02d" %(remainingTime//60, remainingTime%60)
-	label.text= ("Time remaining: " + time_in_minutes)
-	if remainingTime > 60:
-		label.color = (0, 0.85, 0, 1)
-	else:
-		label.color = (1, 0, 0, 1)
-	print("Time remaining: " + time_in_minutes)
-	if screen_manager.current == "Board":
-		if remainingTime > 0:
-			label.parent.children[4].disabled = True
-			Clock.schedule_once(partial(timerStart, label=label), 1)
-#			print(label.parent.children[4].text)
-		else:
-			label.parent.children[4].disabled = False
-			print(label.parent.children)
-			label.parent.children[1].disabled = True
+def generate_board(game_type="Play"):
+	'''Find a board from the stored text files and return it as a 2-dimensional list'''
+	global board, best_time, board_id, boardArray
+	boardArray = []
+	boardFile = open(f"res/boards/boards_{BOARD_SIZE}.txt", "r").read().split("\n")
+	boardFile.pop(0)
+#	boardFile.remove('')
+	boardCount = len(boardFile)//(BOARD_SIZE+1)
+#	print("boardCount", boardCount)
+	for boards in range(boardCount):
+		board = []
+		for row in range(BOARD_SIZE+1):
+			rowList = boardFile[boards*(BOARD_SIZE+1)+row].strip('[]').split(',')
+			board.append([int(num) for num in rowList])
+		boardArray.append(board[:])
+	board = []
+	if game_type == "Solve":
+		board = [[0 for cell in range(BOARD_SIZE)] for row in range(BOARD_SIZE)]
+		best_time = -100
+	elif game_type == "Play":
+		board_id = randrange(1, boardCount)
+		best_time = boardArray[board_id][-1][0]
+		for elem in boardArray[board_id][:-1]:
+			board.append(elem[:])
 
 def isSolved():
+	'''Check whether the board has been solved by the user and so update the UI'''
 	global screen_manager, inputBoard
-	board_screen = screen_manager.screens[2]
-#	for label in board_screen.children[-1].children[-4:]:
-#		print(label.text)
-#	print(board_screen.children[-1].children)
-#	Clock.schedule_once(partial(timerStart, label=board_screen.children[-1].children[6]), 1)
-	print(board_screen.ids, board_screen.children)
-	solvedLabel = board_screen.ids.solvedLabel
+	board_screen = sudoku_app.root.ids.board_screen
+	#print(board_screen.ids, board_screen.children)
+	solvedLabel = sudoku_app.root.ids.solvedLabel
 	solvedLabel.text = "Not Solved"
 	solvedLabel.color = (1, 0, 0, 1)
 	inputBoard = []
@@ -131,7 +200,7 @@ def isSolved():
 			text = cellArray[row*BOARD_SIZE+col].text
 			inputBoard[row].append(int(text) if text else 0)
 	
-	tilesLabel = board_screen.children[-1].children[8]
+	tilesLabel = sudoku_app.root.ids.tilesLabel
 	emptyCells = 0
 	for row in inputBoard:
 		emptyCells += row.count(0)
@@ -147,50 +216,27 @@ def isSolved():
 	else:
 		return False
 
-def cell_options (board, row, col):
-	num_list = [num for num in range(1,BOARD_SIZE+1)]
-	if (row, col) in cells_filled:
-		for elem in cells_filled[cells_filled.index((row, col))+1]:
-			list_delete(num_list, elem)
-	
-	for i in range(BOARD_SIZE):
-		list_delete(num_list, board[row][i])
-		list_delete(num_list, board[i][col])
+def list_delete(num_array, elem):
+	'''Delete an element from list "num_array" without causing ValueError'''
+	try:
+		num_array.remove(elem)
+	except ValueError:
+		pass
 
-	blockX, blockY = row//BLOCK_SIZE, col//BLOCK_SIZE
-	for x in range(BLOCK_SIZE):
-		for y in range(BLOCK_SIZE):
-			currentBlock = board[blockX*BLOCK_SIZE+x][blockY*BLOCK_SIZE+y]
-			list_delete(num_list, currentBlock)
-	return num_list
-	
-def cell_valid(index):
-	row, col = index//BOARD_SIZE, index%BOARD_SIZE
-	cellNum = inputBoard[row][col]
-	if inputBoard[row].count(cellNum) > 1 and cellNum > 0:
-		return "Invalid1"
-	for y in range(BOARD_SIZE):
-		if inputBoard[y][col] == cellNum and cellNum > 0 and y != row:
-			return "Invalid2"
-	blockX, blockY = row//BLOCK_SIZE, col//BLOCK_SIZE
+def save_settings():
+	'''Save user settings like music, sound effects and user score in settings.txt'''
+	with open("res/settings.txt", "w") as settingsTxt:
+		settingsTxt.write("\n".join([f"{key}={value}" for key, value in settingsDict.items()]))
 
-	for x in range(BLOCK_SIZE):
-		for y in range(BLOCK_SIZE):
-			currentBlock = inputBoard[blockX*BLOCK_SIZE+x][blockY*BLOCK_SIZE+y]
-			if currentBlock == cellNum and cellNum > 0 and (blockX*BLOCK_SIZE+x, blockY*BLOCK_SIZE+y) != (row, col):
-				return "Invalid3"
-	return "Valid"
-
-def solve (parent):
-	parent.children[4].disabled = True
-	Clock.schedule_once(partial(solveDelay, parent), 1)
-
-def solveDelay(parent, dt):
+cells_filled = []
+def solve(parent, dt=None):
+	'''Solve a given board using the backtrackking algorithm'''
 	global index, cells_filled, board
 #	print("Solving board...")
 	index = 0
 	cells_filled = []
 	while index < BOARD_SIZE**2:
+#		print(index)
 		if board[index//BOARD_SIZE][index%BOARD_SIZE] == 0:
 			currentOptions = cell_options(board, index//BOARD_SIZE, index%BOARD_SIZE)
 			if currentOptions != []:
@@ -210,216 +256,219 @@ def solveDelay(parent, dt):
 				if not cells_filled == []:
 					index = cells_filled[-2][0]*BOARD_SIZE + cells_filled[-2][1]
 				else:
-					print("Board not solvable")
-					break
+					solve_modal_view = ModalView(size_hint=(0.1, 0.1))
+					solve_modal_view.add_widget(Label(text="Board not solvable"))
+					solve_modal_view.open()
+					return "Board not solvable"
 				board[index//BOARD_SIZE][index%BOARD_SIZE] = 0
 				cellArray[index].text = str(board[index//BOARD_SIZE][index%BOARD_SIZE])
 		else:
 			index += 1
-	print("Board solved")
-	isSolved()
-	parent.children[4].disabled = False
+#	print("Board solved")
+	if isSolved():
+		if game_type == "Play":
+			solve_anim = Animation(y_hint=0.5, duration= 0.65, t="in_out_sine")
+			sudoku_app.root.ids.solved_dialog.ids.new_points_label.text = f"+0"
+			sudoku_app.root.ids.solved_dialog.ids.time_bonus_label.text = f"+0"
+			solve_anim.start(sudoku_app.root.ids.solved_dialog)
 
-def addCells(layout):
-	global cellArray
+
+def validate(instance):
+	'''Update UI elements according to the current board entries''' 
+	global inputBoard, settingsDict
 	
-	def validate(instance):
-		global inputBoard
-		
-		instance.foreground_color = 0,0,0,1
-		if instance.text == "":
-			return
-		if instance.text not in "".join([str(number) for number in range(1,BOARD_SIZE+1)]):
-			#instance.text = ""
-			instance.foreground_color = 1,0,0,1
-		else:
-			index = cellArray.index(instance)
-			row, col = index//BOARD_SIZE, index%BOARD_SIZE
-			inputBoard = []
-			for row in range(BOARD_SIZE):
-				inputBoard.append(list())
-				for col in range(BOARD_SIZE):
-					text = cellArray[row*BOARD_SIZE+col].text
-					inputBoard[row].append(int(text) if text else 0)
+	instance.foreground_color = 0,0,0,1
+	if instance.text == "":
+		return
+	if instance.text not in "".join([str(number) for number in range(1,BOARD_SIZE+1)]):
+		#instance.text = ""
+		instance.foreground_color = 1,0,0,1
+	else:
+		index = cellArray.index(instance)
+		row, col = index//BOARD_SIZE, index%BOARD_SIZE
+		inputBoard = []
+		for row in range(BOARD_SIZE):
+			inputBoard.append(list())
+			for col in range(BOARD_SIZE):
+				text = cellArray[row*BOARD_SIZE+col].text
+				inputBoard[row].append(int(text) if text else 0)
 #			print(board, inputBoard)
-			if cell_valid(index) != "Valid":
-				instance.foreground_color = 1,0,0,1
-			isSolved()
-
-	def lostFocus(instance, value):
-		if not value:
-			isSolved()
-			validate(instance)
-		else:
-			instance.foreground_color = 0,0,0,1
-	
-	layout.clear_widgets()
-	cellArray = []
-	for row in range(BOARD_SIZE):
-		for col in range(BOARD_SIZE):
-			if board[row][col]:
-				numButton = Label(text=str(board[row][col]) if board[row][col] else "")
+		if cell_valid(index) != "Valid":
+			instance.foreground_color = 1,0,0,1
+		if isSolved():
+			sudoku_app.root.ids.solved_dialog.ids.complete_label.text = "BOARD COMPLETE!!"
+			solve_anim = Animation(y_hint=0.5, duration= 0.65, t="in_out_sine")
+			solve_anim.start(sudoku_app.root.ids.solved_dialog)
+			sudoku_app.root.ids.solved_dialog.ids.new_points_label.text = f"+{pointsDict[BOARD_SIZE]}"
+			if remaining_time < best_time:
+				time_bonus = (best_time - remaining_time)//20*BOARD_SIZE
 			else:
-				numButton = NumInput(text=str(board[row][col]) if board[row][col] else "")
-				numButton.bind(on_text_validate=validate, focus=lostFocus)
-				numButton.padding_y = (blockSize-(400/BOARD_SIZE))/2
-			layout.add_widget(numButton)
-			cellArray.append(numButton)
-			with numButton.canvas.after:
-				Color(193/255, 163/255, 123/255, 1)
-				Line(width=2, rectangle=(sectionX + blockSize*(col), sectionY - blockSize*(row), blockSize, blockSize))
-				if (row+1)%blockCount==0 and (col)%blockCount==0:
-					Color(193/255, 163/255, 123/255, 1)
-					Line(width=5, rectangle=(sectionX + blockSize*(col), sectionY - blockSize*(row), blockSize*blockCount, blockSize*blockCount))
-				with layout.canvas:
-					Color(193/255, 163/255, 123/255, 1)
-					Line(width=5, rectangle=(sectionX + blockSize*(0), sectionY - blockSize*(BOARD_SIZE-1), blockSize*BOARD_SIZE, blockSize*BOARD_SIZE))
+				time_bonus = 0
+			sudoku_app.root.ids.solved_dialog.ids.time_bonus_label.text = f"+{time_bonus}"
+
+			settingsDict["Points"] += pointsDict[BOARD_SIZE] + time_bonus
+			sudoku_app.points = settingsDict["Points"]
+			save_settings()
+
+def lostFocus(instance, value):
+	global current_text_input
+	if not value:
+		validate(instance)
+	else:
+		instance.foreground_color = 0,0,0,1
 
 
-class NumInput(TextInput):
-	def __init__(self, **kwargs):
-		super(NumInput, self).__init__(**kwargs)
-	
-	def insert_text(self, substring, from_undo=False):
-		if len(self.text) > 0:
-			substring = ""
-		TextInput.insert_text(self, substring, from_undo)
-		
+screen_manager = None
+cellArray = []
+inputBoard = []
+remaining_time = -1
+game_type = None
+settingsDict = {
+	"Points": -1,
+	"Music": 0,
+	"Sound": 0
+}
+current_text_input = None
 
-class Board(GridLayout):
-	def __init__(self, **kwargs):
+class SudokuApp(App):
+	'''Main Kivy application class'''
+	board_size = BOARD_SIZE
+	points = NumericProperty()
+	play_or_solve = StringProperty()
+
+	def update_board(self, dt=None):
 		global cellArray
-		super(Board, self).__init__(**kwargs)
-		self.cols= BOARD_SIZE
-		self.rows= BOARD_SIZE
-		
-		addCells(self)
+		#print(board)
+		#print("--------------", self.root.ids, sudoku_app.root)
+		for child in self.root.ids.board_screen.children:
+			if isinstance(child, Board):
+				self.root.ids.board_screen.remove_widget(child)
+		boardLayout = Board()
+		boardLayout.cols = BOARD_SIZE
+		cellArray = []
+		for row in range(BOARD_SIZE):
+			for col in range(BOARD_SIZE):
+				if board[row][col]:
+					numButton = BoardLabel(text=str(board[row][col]) if board[row][col] else "")
+				else:
+					numButton = NumInput(text=str(board[row][col]) if board[row][col] else "")
+					numButton.bind(on_text_validate = validate, focus = lostFocus)
+					#numButton.padding_y =  #(blockSize-(400/BOARD_SIZE))/2
+				boardLayout.add_widget(numButton)
+				cellArray.append(numButton)
+		self.root.ids.board_screen.add_widget(boardLayout, index= 1)
 
 
-class BoardScreen(FloatLayout):
-	def __init__(self, **kwargs):
-		super(BoardScreen, self).__init__(**kwargs)
-		#self.clear_widgets()
-#		print(self.parent, "Init")
-		self.board = Board()
-		self.board.size_hint = (9/10, 9*Window.size[0]/(Window.size[1]*10))
-		#self.add_widget(self.board)
-		self.borderGrid = GridLayout()
-		self.borderGrid.size_hint = (9/10, 9*Window.size[0]/(Window.size[1]*10))
-		self.add_widget(self.borderGrid)
+	def build(self):
+		'''Defines the root of the application i.e. ScreenManager'''
+		global screen_manager
+		screen_manager = ScreenManager()
+		return screen_manager
+
+	def load_game(self, play_or_solve="Play"):
+		'''Display the Sudoku board on-screen'''
+		global board, game_type, remaining_time
+		self.play_or_solve = play_or_solve
+		game_type = play_or_solve
+		generate_board(play_or_solve)
+#		print("____________", board)
+		self.update_board()
+		isSolved()
+		remaining_time = 0
+		if play_or_solve == "Play":
+			if best_time != -100:
+				self.root.ids.best_time_label.text = "%2d:%02d" %(best_time//60, best_time%60)
+			else:
+				self.root.ids.best_time_label.text = "--:--"
+			self.root.ids.timer_label.text= "%2d:%02d" %(remaining_time//60, remaining_time%60)
+			Clock.schedule_once(self.timerStart, 3)
+		else:
+			self.root.ids.best_time_label.text = "--:--"
+			self.root.ids.timer_label.text = "--:--"
+		self.root.ids.solved_dialog.y_hint = 1.7
+
+		Clock.schedule_once(partial(self.transition, "Board", "left"), 2)
+		#print("Loading Game")
 		
-	def updateCell(self, row, col):
-		cellArray[row*BOARD_SIZE+col].text = board[row][col]
-	
-	def solveBoard(self):
+
+	def on_start(self):
+		'''Runs before the application starts'''
+		global settingsDict
+		settings = open("res/settings.txt", "r").read().split("\n")
+		for line in settings:
+			settingsDict[line.split("=")[0]] =  int(line.split("=")[1])
+		self.points = settingsDict["Points"]
+		self.root.ids.music_button.icon_path = f"res/icons/music-icon-{settingsDict['Music']}.png"
+		self.root.ids.sound_button.icon_path = f"res/icons/sound-icon-{settingsDict['Sound']}.png"
+		#self.root.ids.points_label.text = str(self.points)
+			
+		self.background_music = SoundLoader.load("res/background_music.wav")
+		self.background_music.loop = True
+		self.background_music.volume = 0.2
+		if settingsDict["Music"] == 1:
+			print("Playing BGM")
+			self.background_music.play()
+
+	def select_board_size(self, size, color):
+		'''Update sudoku board depending on the given dimension (size)'''
+		global BOARD_SIZE
+		BOARD_SIZE = size
+		self.board_size = BOARD_SIZE
+		for child in self.root.ids.size_layout.children:
+			if str(size) in child.text:
+				child.disabled = True
+			else:
+				child.disabled = False
+
+	def solve_board(self):
+		'''Provides sudoku board data for the solve() function'''
 		global cellArray, board
 		inputBoard = []
 		for row in range(BOARD_SIZE):
 			inputBoard.append([int(elem.text) if elem.text else 0 for elem in cellArray[row*BOARD_SIZE:(row+1)*BOARD_SIZE]])
 		if check_board_validity(inputBoard, BOARD_SIZE) == "Valid":
-			#self.children[5].disabled = True
 			board = inputBoard.copy()
 			solve(self)
 			for row in range(BOARD_SIZE):
 				for col in range(BOARD_SIZE):
 					cellArray[row*BOARD_SIZE+col].text = str(board[row][col]) if board[row][col] else ""
-			#self.children[3].disabled = False
-#			print("Enabled")
 		else:
-			print("Invalid Board")		
-#			print(check_board_validity(inputBoard, BOARD_SIZE))
-	
-	def generateBoard(self):
-		Clock.schedule_once(loadBoardScreen, 0.7)
-		screen_manager.transition.direction = "left"
-		screen_manager.current = "Loading"
-		
-	def select_board_size(self, board_size: int, instance):
-		global BOARD_SIZE
-		main_app.board_size = board_size
-		BOARD_SIZE = board_size
-		print(BOARD_SIZE)
-		print(instance.parent.children)
-		for btn in instance.parent.children:
-			btn.disabled = False
-		instance.disabled = True
-	
-	def loadMainScreen(self):
-		global screen_manager
-		screen_manager.transition.direction = "right"
-		screen_manager.current = "Main"
-		
-screen_manager = ScreenManager()
-
-def loadBoardScreen(dt, type="Play"):
-	global screen_manager, remainingTime
-	board_screen = screen_manager.screens[2]
-	generateBoardFromFile(type)
-#	print(board, "For ", type)
-	for widget in board_screen.children[:-1]:
-		board_screen.remove_widget(widget)
-#	print(board_screen.children, "DT")
-	board_screen.board = Board()
-	board_screen.board.size_hint = (9/10, 9*Window.size[0]/(Window.size[1]*10))
-	board_screen.add_widget(board_screen.board)
-	board_screen.borderGrid = GridLayout()
-	board_screen.borderGrid.size_hint = (9/10, 9*Window.size[0]/(Window.size[1]*10))
-	board_screen.add_widget(board_screen.borderGrid)
-	screen_manager.transition.direction = "left"
-	screen_manager.current = "Board"
-	remainingTime = 22
-	isSolved()
-#	print(board_screen.children[-1].children)
-	Clock.schedule_once(partial(timerStart, label=board_screen.children[-1].children[7]), 1)
-#	print(board)
-
-class MainScreen(Screen):
-	def select_board_size(self, board_size: int, instance):
-		global BOARD_SIZE
-		main_app.board_size = board_size
-		BOARD_SIZE = board_size
-		print(BOARD_SIZE)
-		for btn in instance.parent.children:
-			btn.disabled = False
-		instance.disabled = True
-
-	def loadGame(self, type="Play"):
-		Clock.schedule_once(partial(loadBoardScreen, type=type), 0.7)
-		screen_manager.transition.direction = "left"
-		screen_manager.current = "Loading"
-
-class LoadingScreen(FloatLayout):
-	def __init__ (self, **kwargs):
-		super(LoadingScreen, self).__init__(**kwargs)
-		self.loading_label = Label(text="Loading...")
-		self.loading_label.font_size = 64
-		self.loading_label.pos_hint = {"center_x": 0.5, "center_y": 0.5}
-		self.add_widget(self.loading_label)
+			solve_modal_view = ModalView()
+			solve_modal_view.add_widget(Label(text="Invalid Board"))
+			solve_modal_view.open()
+#			print("Invalid Board")		
 	
 
-class SudokuApp(App):
-	global BOARD_SIZE
-	board_size = int(open("boards_9.txt", "r").readlines()[0])
-	BOARD_SIZE = board_size
-	def build(self):
-		global screen_manager
-		screen = Screen(name="Main")
-		screen.add_widget(MainScreen())
-		screen_manager.add_widget(screen)
-		
-		screen = Screen(name="Loading")
-		screen.add_widget(LoadingScreen())
-		screen_manager.add_widget(screen)
-		
-		generateBoardFromFile()
-		screen = Screen(name="Board")
-		screen.add_widget(BoardScreen())
-		screen_manager.add_widget(screen)
-		
-		print(board)
-		screen_manager.current = "Main"
-		return screen_manager
-	
+	def timerStart(self, dt=None):
+		'''Controls the application timer'''
+		global remaining_time
+		remaining_time += 1
+		time_in_minutes = "%2d:%02d" %(remaining_time//60, remaining_time%60)
+		timer_label = self.root.ids.timer_label
+		timer_label.text= ("" + time_in_minutes)
+		#print("Time remaining: " + time_in_minutes)
+		if self.root.current == "Board":
+			if remaining_time > 0:
+				Clock.schedule_once(self.timerStart, 1)
+
+	def toggle_settings(self, setting_type, button):
+		'''Control application settings like music and sound effects''' 
+		global settingsDict
+		settingsDict[setting_type] = 0 if settingsDict[setting_type] else 1
+		button.icon_path = f"res/icons/{setting_type.lower()}-icon-{settingsDict[setting_type]}.png"
+		if setting_type == "Music":
+			if settingsDict["Music"] == 1:
+				self.background_music.play()
+			else:
+				self.background_music.stop()
+		save_settings()
+
+	def transition(self, screen_name, direction, dt=None):
+		'''Transition from one screen to another in a specified direction'''
+		screen_manager.transition.direction = direction
+		self.root.current = screen_name
+		#print(f"Switching to {screen_name}")
+
 if __name__ == "__main__":
-	main_app = SudokuApp()
-	main_app.run()
+	sudoku_app = SudokuApp()
+	sudoku_app.run()
